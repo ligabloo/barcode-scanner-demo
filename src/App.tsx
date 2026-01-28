@@ -1,10 +1,30 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useState } from "react";
+import reactLogo from "./assets/react.svg";
+import viteLogo from "/vite.svg";
+import "./App.css";
+import { useBarcodeDetector } from "./hooks/useBarcodeDetector";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [count, setCount] = useState(0);
+  const detect = useBarcodeDetector({ formats: ["pdf417"] });
+
+  useEffect(() => {
+    const testBarCode = async () => {
+      try {
+        const imageFile = await fetch(
+          "https://barcodeapi.org/api/417/Testingoutdata",
+        ).then((resp) => resp.blob());
+
+        console.log(imageFile);
+        const barcodes = await detect(imageFile);
+        console.log(barcodes);
+      } catch (err) {
+        console.error("Failed to detect barcodes:", err);
+      }
+    };
+
+    testBarCode();
+  }, [detect]);
 
   return (
     <>
@@ -29,7 +49,7 @@ function App() {
         Click on the Vite and React logos to learn more
       </p>
     </>
-  )
+  );
 }
 
-export default App
+export default App;
