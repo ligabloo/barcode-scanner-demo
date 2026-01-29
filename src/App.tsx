@@ -1,54 +1,34 @@
-import { useEffect, useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
-import "./App.css";
-import { useBarcodeDetector } from "./hooks/useBarcodeDetector";
+import { Route, Router, Switch, type AroundNavHandler } from "wouter";
+import Home from "./pages/Home";
+import Scanner from "./pages/Scanner";
+import LicenseDetails from "./pages/LicenseDetails";
+import NotFound from "./pages/NotFound";
+import { flushSync } from "react-dom";
+
+const aroundNav: AroundNavHandler = (navigate, to, options) => {
+  if (!document.startViewTransition) {
+    // check if supported
+    navigate(to, options);
+    return;
+  }
+
+  document.startViewTransition(() => {
+    flushSync(() => {
+      navigate(to, options);
+    });
+  });
+};
 
 function App() {
-  const [count, setCount] = useState(0);
-  const detect = useBarcodeDetector({ formats: ["pdf417"] });
-
-  useEffect(() => {
-    const testBarCode = async () => {
-      try {
-        const imageFile = await fetch(
-          "https://barcodeapi.org/api/417/Testingoutdata",
-        ).then((resp) => resp.blob());
-
-        console.log(imageFile);
-        const barcodes = await detect(imageFile);
-        console.log(barcodes);
-      } catch (err) {
-        console.error("Failed to detect barcodes:", err);
-      }
-    };
-
-    testBarCode();
-  }, [detect]);
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <Router aroundNav={aroundNav}>
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/scanner" component={Scanner} />
+        <Route path="/license-details" component={LicenseDetails} />
+        <Route component={NotFound} />
+      </Switch>
+    </Router>
   );
 }
 
