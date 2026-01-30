@@ -148,15 +148,17 @@ function LicenseDetails() {
 
         {/* Action Buttons */}
         <div className="flex flex-col gap-3 mt-8">
-          <Link href="/scanner">
-            <a className="block w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 px-6 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg text-center">
-              Scan Another License
-            </a>
+          <Link
+            href="/scanner"
+            className="block w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 px-6 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg text-center"
+          >
+            Scan Another License
           </Link>
-          <Link href="/">
-            <a className="block w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-4 px-6 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg text-center">
-              Go Home
-            </a>
+          <Link
+            href="/"
+            className="block w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-4 px-6 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg text-center"
+          >
+            Go Home
           </Link>
         </div>
       </div>

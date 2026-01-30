@@ -11,10 +11,11 @@ function Home() {
           Welcome to the PDF417 barcode scanner application. Scan driver's
           licenses and ID cards with ease.
         </p>
-        <Link href="/scanner">
-          <a className="block w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 px-6 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg">
-            Start Scanner
-          </a>
+        <Link
+          href="/scanner"
+          className="block w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 px-6 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg"
+        >
+          Start Scanner
         </Link>
       </div>
     </div>

@@ -30,10 +30,11 @@ function NotFound() {
           </svg>
         </div>
 
-        <Link href="/">
-          <a className="block w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 px-6 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg">
-            Go Back Home
-          </a>
+        <Link
+          href="/"
+          className="block w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 px-6 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg"
+        >
+          Go Back Home
         </Link>
       </div>
     </div>

@@ -1,41 +1,40 @@
-import { useEffect } from "react";
-import { BarcodeDetector } from "barcode-detector/ponyfill";
-import { Parse } from "aamva-parser";
+import { useEffect, useRef } from "react";
 import { useLocation, Link } from "wouter";
 import { useCamera } from "../hooks/useCamera";
+import { readBarcodes } from "zxing-wasm/reader";
 
 function Scanner() {
   const { videoRef, error } = useCamera();
 
   const [, setLocation] = useLocation();
 
+  const canvasRef = useRef(new OffscreenCanvas(0, 0));
+
   useEffect(() => {
-    if (!videoRef.current) return;
-    const detector = new BarcodeDetector({ formats: ["pdf417"] });
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video) return;
 
-    videoRef.current.addEventListener("play", async () => {
-      console.log("opa");
-      let isScanning = true;
+    canvas.height = video.height;
+    canvas.width = video.width;
+    const ctx = canvas.getContext("2d");
 
-      while (isScanning) {
-        const detected = await detector.detect(videoRef.current!);
+    const captureBarcode = async () => {
+      ctx?.drawImage(video, 0, 0, video.width, video.height);
+      const blob = await canvas.convertToBlob();
 
-        console.log(detected);
-        if (detected.length == 0) return;
+      const results = await readBarcodes(blob);
 
-        detected.forEach((barcode) => {
-          const license = Parse(barcode.rawValue);
-
-          if (license) {
-            isScanning = false;
-            // Store license data in sessionStorage
-            sessionStorage.setItem("scannedLicense", JSON.stringify(license));
-            // Navigate to license details page
-            setLocation("/license-details");
-          }
-        });
+      if (!results.length) {
+        console.log("oops");
+        setTimeout(captureBarcode, 50);
+        return;
       }
-    });
+
+      console.log(results);
+    };
+
+    captureBarcode();
   }, [videoRef, setLocation]);
 
   return (
@@ -44,23 +43,24 @@ function Scanner() {
       <div className="bg-indigo-600 shadow-lg">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-white">PDF417 Scanner</h1>
-          <Link href="/">
-            <a className="text-white hover:text-indigo-200 transition-colors">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </a>
+          <Link
+            href="/"
+            className="text-white hover:text-indigo-200 transition-colors"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
           </Link>
         </div>
       </div>
@@ -89,10 +89,11 @@ function Scanner() {
               Camera Access Required
             </h2>
             <p className="text-red-700 mb-4">{error}</p>
-            <Link href="/">
-              <a className="inline-block bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors">
-                Go Back
-              </a>
+            <Link
+              href="/"
+              className="inline-block bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
+            >
+              Go Back
             </Link>
           </div>
         ) : (
