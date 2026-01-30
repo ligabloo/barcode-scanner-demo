@@ -1,80 +1,42 @@
-import { useEffect, useRef, useState } from "react";
-import { BarcodeDetector } from "barcode-detector";
+import { useEffect } from "react";
+import { BarcodeDetector } from "barcode-detector/ponyfill";
 import { Parse } from "aamva-parser";
 import { useLocation, Link } from "wouter";
-
-const DEFAULT_CONSTRAINTS: MediaTrackConstraints = {
-  width: { min: 640, ideal: 1280 },
-  height: { min: 480, ideal: 720 },
-  facingMode: {
-    ideal: "environment",
-  },
-  advanced: [{ width: 1920, height: 1280 }, { aspectRatio: 1.333 }],
-};
+import { useCamera } from "../hooks/useCamera";
 
 function Scanner() {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [error, setError] = useState<string>("");
+  const { videoRef, error } = useCamera();
+
   const [, setLocation] = useLocation();
 
   useEffect(() => {
     if (!videoRef.current) return;
-
-    const video = videoRef.current;
-
-    async function loadCamera() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: DEFAULT_CONSTRAINTS,
-        });
-        video.srcObject = stream;
-
-        video.play();
-        setIsLoaded(true);
-      } catch (err) {
-        console.error("Failed to load camera:", err);
-        setError("Failed to access camera. Please grant camera permissions.");
-      }
-    }
-
-    loadCamera();
-
-    // Cleanup function to stop camera when component unmounts
-    return () => {
-      if (video?.srcObject) {
-        const tracks = (video.srcObject as MediaStream).getTracks();
-        tracks.forEach((track) => track.stop());
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-
     const detector = new BarcodeDetector({ formats: ["pdf417"] });
 
-    videoRef.current?.addEventListener("play", () => {
-      const interval = setInterval(async () => {
+    videoRef.current.addEventListener("play", async () => {
+      console.log("opa");
+      let isScanning = true;
+
+      while (isScanning) {
         const detected = await detector.detect(videoRef.current!);
 
+        console.log(detected);
         if (detected.length == 0) return;
 
         detected.forEach((barcode) => {
           const license = Parse(barcode.rawValue);
 
           if (license) {
+            isScanning = false;
             // Store license data in sessionStorage
             sessionStorage.setItem("scannedLicense", JSON.stringify(license));
             // Navigate to license details page
             setLocation("/license-details");
-            clearInterval(interval);
           }
         });
-      }, 50);
+      }
     });
-  }, [isLoaded, setLocation]);
+  }, [videoRef, setLocation]);
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
@@ -154,15 +116,6 @@ function Scanner() {
                   <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-green-400"></div>
                 </div>
               </div>
-
-              {!isLoaded && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-indigo-500 mx-auto mb-4"></div>
-                    <p className="text-white text-lg">Loading camera...</p>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Instructions */}
