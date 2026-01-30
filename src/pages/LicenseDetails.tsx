@@ -1,5 +1,5 @@
 import { useLocation, Link } from "wouter";
-import { type ParsedLicense } from "aamva-parser";
+import { Parse, type ParsedLicense } from "aamva-parser";
 import { useMemo } from "react";
 
 const Field = ({
@@ -28,23 +28,21 @@ interface ExtendedLicense extends ParsedLicense {
 }
 
 function LicenseDetails() {
-  const [, setLocation] = useLocation();
+  const [, navigate] = useLocation();
 
   const license = useMemo<ExtendedLicense | null>(() => {
-    const storedLicense = sessionStorage.getItem("scannedLicense");
-    if (storedLicense) {
-      try {
-        return JSON.parse(storedLicense);
-      } catch (err) {
-        console.error("Failed to parse license data:", err);
-        setTimeout(() => setLocation("/"), 0);
-        return null;
-      }
-    } else {
-      setTimeout(() => setLocation("/"), 0);
+    const barcode = sessionStorage.getItem("barcode") ?? "";
+
+    try {
+      const license = Parse(barcode);
+      console.log(barcode, license);
+      return license;
+    } catch (err) {
+      console.error("Failed to parse license data:", err);
+      setTimeout(() => navigate("/"), 0);
       return null;
     }
-  }, [setLocation]);
+  }, [navigate]);
 
   if (!license) {
     return (

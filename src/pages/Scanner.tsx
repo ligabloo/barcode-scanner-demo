@@ -1,41 +1,69 @@
 import { useEffect, useRef } from "react";
 import { useLocation, Link } from "wouter";
-import { useCamera } from "../hooks/useCamera";
+import { useCameraStream } from "../hooks/useCameraStream";
 import { readBarcodes } from "zxing-wasm/reader";
 
 function Scanner() {
-  const { videoRef, error } = useCamera();
+  const { stream, error } = useCameraStream();
 
-  const [, setLocation] = useLocation();
+  const [, navigate] = useLocation();
 
-  const canvasRef = useRef(new OffscreenCanvas(0, 0));
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<OffscreenCanvas>(new OffscreenCanvas(0, 0));
 
   useEffect(() => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video) return;
-
-    canvas.height = video.height;
-    canvas.width = video.width;
-    const ctx = canvas.getContext("2d");
+    if (!stream) return;
+    const video = videoRef.current!;
+    const canvas = canvasRef.current!;
 
     const captureBarcode = async () => {
-      ctx?.drawImage(video, 0, 0, video.width, video.height);
-      const blob = await canvas.convertToBlob();
+      const width = video?.videoWidth;
+      const height = video?.videoHeight;
 
-      const results = await readBarcodes(blob);
-
-      if (!results.length) {
-        console.log("oops");
+      if (!width || !height) {
         setTimeout(captureBarcode, 50);
         return;
       }
 
-      console.log(results);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d", {
+        willReadFrequently: true,
+      }) as OffscreenCanvasRenderingContext2D;
+
+      ctx.drawImage(video, 0, 0, width, height);
+      const imageData = ctx.getImageData(0, 0, width, height);
+
+      const barcodes = await readBarcodes(imageData, {
+        formats: ["PDF417"],
+        tryHarder: true,
+        textMode: "Plain",
+      }).catch((e) => console.log(e));
+
+      console.log(barcodes);
+
+      if (!barcodes || !barcodes.length) {
+        setTimeout(captureBarcode, 50);
+        return;
+      }
+
+      sessionStorage.setItem("barcode", barcodes[0].text);
+      navigate("/license-details");
     };
 
-    captureBarcode();
-  }, [videoRef, setLocation]);
+    video.addEventListener("playing", captureBarcode);
+    video.srcObject = stream;
+    video.play();
+
+    return () => {
+      video.removeEventListener("playing", captureBarcode);
+      video.srcObject = null;
+      video.pause();
+    };
+  }, [videoRef, navigate, stream]);
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
@@ -100,12 +128,7 @@ function Scanner() {
           <div className="w-full max-w-4xl">
             {/* Scanner Frame */}
             <div className="relative bg-black rounded-2xl overflow-hidden shadow-2xl">
-              <video
-                id="stream"
-                autoPlay
-                ref={videoRef}
-                className="w-full h-auto"
-              />
+              <video autoPlay ref={videoRef} className="w-full h-auto" />
 
               {/* Scanning Overlay */}
               <div className="absolute inset-0 pointer-events-none">
