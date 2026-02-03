@@ -1,4 +1,4 @@
-import { useLocation, Link } from "wouter";
+import { useLocation, Link, useParams } from "wouter";
 import { Parse, type ParsedLicense } from "aamva-parser";
 import { useMemo } from "react";
 
@@ -19,30 +19,20 @@ const Field = ({
   </div>
 );
 
-interface ExtendedLicense extends ParsedLicense {
-  sex?: string;
-  issuingCountry?: string;
-  jurisdiction?: string;
-  documentDiscriminator?: string;
-  vehicleClass?: string;
-}
-
 function LicenseDetails() {
   const [, navigate] = useLocation();
+  const { barcode } = useParams<{ barcode: string }>();
 
-  const license = useMemo<ExtendedLicense | null>(() => {
-    const barcode = sessionStorage.getItem("barcode") ?? "";
-
+  const license = useMemo<ParsedLicense | null>(() => {
     try {
       const license = Parse(barcode);
-      console.log(barcode, license);
       return license;
     } catch (err) {
       console.error("Failed to parse license data:", err);
       setTimeout(() => navigate("/"), 0);
       return null;
     }
-  }, [navigate]);
+  }, [barcode, navigate]);
 
   if (!license) {
     return (
@@ -55,11 +45,6 @@ function LicenseDetails() {
     );
   }
 
-  const formatDate = (date: Date | null | undefined) => {
-    if (!date) return "N/A";
-    return new Date(date).toLocaleDateString();
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
@@ -71,78 +56,15 @@ function LicenseDetails() {
           <p className="text-gray-600">Scanned information from ID</p>
         </div>
 
-        {/* Personal Information */}
-        <div className="bg-white rounded-xl shadow-md overflow-hidden mb-4">
-          <div className="bg-indigo-600 px-6 py-4">
-            <h2 className="text-xl font-semibold text-white">
-              Personal Information
-            </h2>
-          </div>
-          <div className="px-6">
-            <Field label="First Name" value={license.firstName} />
-            <Field label="Last Name" value={license.lastName} />
-            <Field label="Middle Name" value={license.middleName} />
+        <div className="bg-white rounded-xl shadow-md overflow-hidden mb-4 px-6">
+          {Object.keys(license).map((key) => (
             <Field
-              label="Date of Birth"
-              value={formatDate(license.dateOfBirth)}
+              key={key}
+              label={key}
+              value={license[key as keyof ParsedLicense]?.toString()}
             />
-            <Field label="Gender" value={license.sex} />
-            <Field label="Eye Color" value={license.eyeColor} />
-            <Field label="Hair Color" value={license.hairColor} />
-            <Field label="Height" value={license.height} />
-            <Field label="Weight" value={license.weight} />
-          </div>
+          ))}
         </div>
-
-        {/* License Information */}
-        <div className="bg-white rounded-xl shadow-md overflow-hidden mb-4">
-          <div className="bg-indigo-600 px-6 py-4">
-            <h2 className="text-xl font-semibold text-white">
-              License Information
-            </h2>
-          </div>
-          <div className="px-6">
-            <Field label="License Number" value={license.driversLicenseId} />
-            <Field label="Issue Date" value={formatDate(license.issueDate)} />
-            <Field
-              label="Expiration Date"
-              value={formatDate(license.expirationDate)}
-            />
-            <Field label="Issuing Country" value={license.issuingCountry} />
-            <Field label="Jurisdiction" value={license.jurisdiction} />
-            <Field
-              label="Document Discriminator"
-              value={license.documentDiscriminator}
-            />
-          </div>
-        </div>
-
-        {/* Address */}
-        <div className="bg-white rounded-xl shadow-md overflow-hidden mb-4">
-          <div className="bg-indigo-600 px-6 py-4">
-            <h2 className="text-xl font-semibold text-white">Address</h2>
-          </div>
-          <div className="px-6">
-            <Field label="Street Address" value={license.streetAddress} />
-            <Field label="City" value={license.city} />
-            <Field label="State" value={license.state} />
-            <Field label="Postal Code" value={license.postalCode} />
-          </div>
-        </div>
-
-        {/* Vehicle Class (if available) */}
-        {license.vehicleClass && (
-          <div className="bg-white rounded-xl shadow-md overflow-hidden mb-4">
-            <div className="bg-indigo-600 px-6 py-4">
-              <h2 className="text-xl font-semibold text-white">
-                Vehicle Class
-              </h2>
-            </div>
-            <div className="px-6">
-              <Field label="Class" value={license.vehicleClass} />
-            </div>
-          </div>
-        )}
 
         {/* Action Buttons */}
         <div className="flex flex-col gap-3 mt-8">

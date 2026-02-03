@@ -25,7 +25,7 @@ function App() {
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/scanner" component={Scanner} />
-        <Route path="/license-details" component={LicenseDetails} />
+        <Route path="/license-details/:barcode" component={LicenseDetails} />
         <Route component={NotFound} />
       </Switch>
     </Router>

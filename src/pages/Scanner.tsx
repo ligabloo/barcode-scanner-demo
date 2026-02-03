@@ -1,20 +1,28 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, Link } from "wouter";
-import { useCameraStream } from "../hooks/useCameraStream";
+
 import { readBarcodes } from "zxing-wasm/reader";
 
-function Scanner() {
-  const { stream, error } = useCameraStream();
+const DEFAULT_CONSTRAINTS: MediaTrackConstraints = {
+  width: { min: 640, ideal: 1280 },
+  height: { min: 480, ideal: 720 },
+  facingMode: {
+    ideal: "environment",
+  },
+  advanced: [{ width: 1920, height: 1280 }, { aspectRatio: 1.333 }],
+};
 
+function Scanner() {
   const [, navigate] = useLocation();
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<OffscreenCanvas>(new OffscreenCanvas(0, 0));
 
+  const [error, setError] = useState<string>("");
+
   useEffect(() => {
-    if (!stream) return;
-    const video = videoRef.current!;
     const canvas = canvasRef.current!;
+    const video = videoRef.current!;
 
     const captureBarcode = async () => {
       const width = video?.videoWidth;
@@ -40,8 +48,9 @@ function Scanner() {
       const barcodes = await readBarcodes(imageData, {
         formats: ["PDF417"],
         tryHarder: true,
+        tryRotate: true,
         textMode: "Plain",
-      }).catch((e) => console.log(e));
+      }).catch((e) => console.log("Error parsing barcode", e));
 
       console.log(barcodes);
 
@@ -50,20 +59,29 @@ function Scanner() {
         return;
       }
 
-      sessionStorage.setItem("barcode", barcodes[0].text);
-      navigate("/license-details");
+      const encodedBarcode = encodeURIComponent(barcodes[0].text);
+      navigate(`/license-details/${encodedBarcode}`);
     };
 
-    video.addEventListener("playing", captureBarcode);
-    video.srcObject = stream;
-    video.play();
+    navigator.mediaDevices
+      .getUserMedia({
+        audio: false,
+        video: DEFAULT_CONSTRAINTS,
+      })
+      .then((stream) => {
+        video.addEventListener("play", captureBarcode);
+        video.srcObject = stream;
+        video.play();
+      })
+      .catch((err) => {
+        console.error("Failed to load camera:", err);
+        setError("Failed to access camera. Please grant camera permissions.");
+      });
 
     return () => {
-      video.removeEventListener("playing", captureBarcode);
-      video.srcObject = null;
-      video.pause();
+      video.removeEventListener("play", captureBarcode);
     };
-  }, [videoRef, navigate, stream]);
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
