@@ -1,34 +1,21 @@
-import { Route, Router, Switch, type AroundNavHandler } from "wouter";
-import Home from "./pages/Home";
-import Scanner from "./pages/Scanner";
-import LicenseDetails from "./pages/LicenseDetails";
-import NotFound from "./pages/NotFound";
-import { flushSync } from "react-dom";
+import { Route, Switch } from "wouter";
+import { Suspense, lazy } from "react";
 
-const aroundNav: AroundNavHandler = (navigate, to, options) => {
-  if (!document.startViewTransition) {
-    // check if supported
-    navigate(to, options);
-    return;
-  }
-
-  document.startViewTransition(() => {
-    flushSync(() => {
-      navigate(to, options);
-    });
-  });
-};
+const Home = lazy(() => import("./pages/Home"));
+const Scanner = lazy(() => import("./pages/Scanner"));
+const LicenseDetails = lazy(() => import("./pages/LicenseDetails"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 function App() {
   return (
-    <Router aroundNav={aroundNav}>
+    <Suspense fallback={<div>Loading...</div>}>
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/scanner" component={Scanner} />
         <Route path="/license-details/:barcode" component={LicenseDetails} />
         <Route component={NotFound} />
       </Switch>
-    </Router>
+    </Suspense>
   );
 }
 

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-
+import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { BrowserPDF417Reader } from "@zxing/browser";
 import { useLocation, Link } from "wouter";
 import { useMediaManager } from "@classytic/react-stream";
 
@@ -7,6 +7,8 @@ function Scanner() {
   const { cameraStream } = useMediaManager({
     autoInitialize: true,
     videoConstraints: {
+      width: 1280,
+      height: 720,
       facingMode: "environment",
     },
     audioConstraints: false,
@@ -15,36 +17,44 @@ function Scanner() {
   const [error, setError] = useState<string>("");
   const [, navigate] = useLocation();
 
-  useEffect(() => {
-    const video = videoRef.current!;
+  const goToDetailsPage = useEffectEvent((barcode: string) => {
+    navigate(`/license-details/${barcode}`);
+  });
 
+  useEffect(() => {
     if (!cameraStream) return;
 
-    async function scanBarcode() {
-      const { BrowserPDF417Reader } = await import("@zxing/browser");
+    const video = videoRef.current!;
 
-      const reader = new BrowserPDF417Reader();
+    const reader = new BrowserPDF417Reader();
 
-      try {
-        video.srcObject = cameraStream;
-        video.play();
+    const startScan = async () => {
+      const interval = setInterval(() => {
+        try {
+          const result = reader.decode(video);
 
-        const result = await reader.decodeOnceFromVideoElement(video);
+          if (result) {
+            clearInterval(interval);
+            const barcode = encodeURIComponent(result.getText());
+            goToDetailsPage(barcode);
+          }
+        } catch (error: unknown) {
+          setError((error as Error).message);
+        }
+      }, 30);
+    };
 
-        const barcode = encodeURIComponent(result.getText());
-        navigate(`/license-details/${barcode}`);
-      } catch (error) {
-        console.log("Error scanning barcode: ", error);
-        setError(`Error scanning barcode: ${error}`);
-      }
-    }
-
-    scanBarcode();
+    video.srcObject = cameraStream;
+    video.play();
+    video.addEventListener("playing", startScan);
 
     return () => {
+      video.removeEventListener("playing", startScan);
+      video.pause();
+      video.srcObject = null;
       cameraStream.getTracks().forEach((track) => track.stop());
     };
-  }, [cameraStream, navigate]);
+  }, [cameraStream]);
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
