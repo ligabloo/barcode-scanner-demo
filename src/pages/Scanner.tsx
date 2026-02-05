@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { BarcodeDetector } from "barcode-detector/ponyfill";
-import { Parse } from "aamva-parser";
 import { useLocation, Link } from "wouter";
 
 const DEFAULT_CONSTRAINTS: MediaTrackConstraints = {
