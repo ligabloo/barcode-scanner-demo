@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { BarcodeDetector } from "barcode-detector/ponyfill";
+import { Parse } from "aamva-parser";
 import { useLocation, Link } from "wouter";
-
-import { readBarcodes } from "zxing-wasm/reader";
 
 const DEFAULT_CONSTRAINTS: MediaTrackConstraints = {
   width: { min: 640, ideal: 1280 },
@@ -13,75 +13,60 @@ const DEFAULT_CONSTRAINTS: MediaTrackConstraints = {
 };
 
 function Scanner() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [error, setError] = useState<string>("");
   const [, navigate] = useLocation();
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<OffscreenCanvas>(new OffscreenCanvas(0, 0));
-
-  const [error, setError] = useState<string>("");
-
   useEffect(() => {
-    const canvas = canvasRef.current!;
-    const video = videoRef.current!;
+    if (!videoRef.current) return;
 
-    const captureBarcode = async () => {
-      const width = video?.videoWidth;
-      const height = video?.videoHeight;
+    const video = videoRef.current;
 
-      if (!width || !height) {
-        setTimeout(captureBarcode, 50);
-        return;
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      canvas.width = width;
-      canvas.height = height;
-
-      const ctx = canvas.getContext("2d", {
-        willReadFrequently: true,
-      }) as OffscreenCanvasRenderingContext2D;
-
-      ctx.drawImage(video, 0, 0, width, height);
-      const imageData = ctx.getImageData(0, 0, width, height);
-
-      const barcodes = await readBarcodes(imageData, {
-        formats: ["PDF417"],
-        tryHarder: true,
-        tryRotate: true,
-        textMode: "Plain",
-      }).catch((e) => console.log("Error parsing barcode", e));
-
-      console.log(barcodes);
-
-      if (!barcodes || !barcodes.length) {
-        setTimeout(captureBarcode, 50);
-        return;
-      }
-
-      const encodedBarcode = encodeURIComponent(barcodes[0].text);
-      navigate(`/license-details/${encodedBarcode}`);
-    };
-
-    navigator.mediaDevices
-      .getUserMedia({
-        audio: false,
-        video: DEFAULT_CONSTRAINTS,
-      })
-      .then((stream) => {
-        video.addEventListener("play", captureBarcode);
+    async function loadCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: DEFAULT_CONSTRAINTS,
+        });
         video.srcObject = stream;
+
         video.play();
-      })
-      .catch((err) => {
+        setIsLoaded(true);
+      } catch (err) {
         console.error("Failed to load camera:", err);
         setError("Failed to access camera. Please grant camera permissions.");
-      });
+      }
+    }
 
+    loadCamera();
+
+    // Cleanup function to stop camera when component unmounts
     return () => {
-      video.removeEventListener("play", captureBarcode);
+      if (video?.srcObject) {
+        const tracks = (video.srcObject as MediaStream).getTracks();
+        tracks.forEach((track) => track.stop());
+      }
     };
-  }, [navigate]);
+  }, []);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    const detector = new BarcodeDetector({ formats: ["pdf417"] });
+
+    videoRef.current?.addEventListener("play", () => {
+      const interval = setInterval(async () => {
+        const barcodes = await detector.detect(videoRef.current!);
+
+        if (barcodes.length == 0) return;
+
+        clearInterval(interval);
+        const encodedBarcode = encodeURIComponent(barcodes[0].rawValue);
+        navigate(`/license-details/${encodedBarcode}`);
+      }, 50);
+    });
+  }, [isLoaded, navigate]);
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
@@ -89,24 +74,23 @@ function Scanner() {
       <div className="bg-indigo-600 shadow-lg">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-white">PDF417 Scanner</h1>
-          <Link
-            href="/"
-            className="text-white hover:text-indigo-200 transition-colors"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+          <Link href="/">
+            <a className="text-white hover:text-indigo-200 transition-colors">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </a>
           </Link>
         </div>
       </div>
@@ -135,18 +119,22 @@ function Scanner() {
               Camera Access Required
             </h2>
             <p className="text-red-700 mb-4">{error}</p>
-            <Link
-              href="/"
-              className="inline-block bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
-            >
-              Go Back
+            <Link href="/">
+              <a className="inline-block bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors">
+                Go Back
+              </a>
             </Link>
           </div>
         ) : (
           <div className="w-full max-w-4xl">
             {/* Scanner Frame */}
             <div className="relative bg-black rounded-2xl overflow-hidden shadow-2xl">
-              <video autoPlay ref={videoRef} className="w-full h-auto" />
+              <video
+                id="stream"
+                autoPlay
+                ref={videoRef}
+                className="w-full h-auto"
+              />
 
               {/* Scanning Overlay */}
               <div className="absolute inset-0 pointer-events-none">
@@ -158,6 +146,15 @@ function Scanner() {
                   <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-green-400"></div>
                 </div>
               </div>
+
+              {!isLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-indigo-500 mx-auto mb-4"></div>
+                    <p className="text-white text-lg">Loading camera...</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Instructions */}
