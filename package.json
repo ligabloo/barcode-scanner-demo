@@ -10,9 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@classytic/react-stream": "^1.0.0",
     "@tailwindcss/vite": "^4.1.18",
+    "@zxing/browser": "^0.1.5",
     "aamva-parser": "^1.4.1",
-    "barcode-detector": "^3.0.8",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "wouter": "^3.9.0"

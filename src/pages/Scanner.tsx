@@ -1,71 +1,50 @@
 import { useEffect, useRef, useState } from "react";
-import { BarcodeDetector } from "barcode-detector/ponyfill";
-import { useLocation, Link } from "wouter";
 
-const DEFAULT_CONSTRAINTS: MediaTrackConstraints = {
-  width: { min: 640, ideal: 1280 },
-  height: { min: 480, ideal: 720 },
-  facingMode: {
-    ideal: "environment",
-  },
-  advanced: [{ width: 1920, height: 1280 }, { aspectRatio: 1.333 }],
-};
+import { useLocation, Link } from "wouter";
+import { useMediaManager } from "@classytic/react-stream";
 
 function Scanner() {
+  const { cameraStream } = useMediaManager({
+    autoInitialize: true,
+    videoConstraints: {
+      facingMode: "environment",
+    },
+    audioConstraints: false,
+  });
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string>("");
   const [, navigate] = useLocation();
 
   useEffect(() => {
-    if (!videoRef.current) return;
+    const video = videoRef.current!;
 
-    const video = videoRef.current;
+    if (!cameraStream) return;
 
-    async function loadCamera() {
+    async function scanBarcode() {
+      const { BrowserPDF417Reader } = await import("@zxing/browser");
+
+      const reader = new BrowserPDF417Reader();
+
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: DEFAULT_CONSTRAINTS,
-        });
-        video.srcObject = stream;
-
+        video.srcObject = cameraStream;
         video.play();
-        setIsLoaded(true);
-      } catch (err) {
-        console.error("Failed to load camera:", err);
-        setError("Failed to access camera. Please grant camera permissions.");
+
+        const result = await reader.decodeOnceFromVideoElement(video);
+
+        const barcode = encodeURIComponent(result.getText());
+        navigate(`/license-details/${barcode}`);
+      } catch (error) {
+        console.log("Error scanning barcode: ", error);
+        setError(`Error scanning barcode: ${error}`);
       }
     }
 
-    loadCamera();
+    scanBarcode();
 
-    // Cleanup function to stop camera when component unmounts
     return () => {
-      if (video?.srcObject) {
-        const tracks = (video.srcObject as MediaStream).getTracks();
-        tracks.forEach((track) => track.stop());
-      }
+      cameraStream.getTracks().forEach((track) => track.stop());
     };
-  }, []);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-
-    const detector = new BarcodeDetector({ formats: ["pdf417"] });
-
-    videoRef.current?.addEventListener("play", () => {
-      const interval = setInterval(async () => {
-        const barcodes = await detector.detect(videoRef.current!);
-
-        if (barcodes.length == 0) return;
-
-        clearInterval(interval);
-        const encodedBarcode = encodeURIComponent(barcodes[0].rawValue);
-        navigate(`/license-details/${encodedBarcode}`);
-      }, 50);
-    });
-  }, [isLoaded, navigate]);
+  }, [cameraStream, navigate]);
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
@@ -73,23 +52,24 @@ function Scanner() {
       <div className="bg-indigo-600 shadow-lg">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-white">PDF417 Scanner</h1>
-          <Link href="/">
-            <a className="text-white hover:text-indigo-200 transition-colors">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </a>
+          <Link
+            href="/"
+            className="text-white hover:text-indigo-200 transition-colors"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
           </Link>
         </div>
       </div>
@@ -118,10 +98,11 @@ function Scanner() {
               Camera Access Required
             </h2>
             <p className="text-red-700 mb-4">{error}</p>
-            <Link href="/">
-              <a className="inline-block bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors">
-                Go Back
-              </a>
+            <Link
+              href="/"
+              className="inline-block bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
+            >
+              Go Back
             </Link>
           </div>
         ) : (
@@ -145,15 +126,6 @@ function Scanner() {
                   <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-green-400"></div>
                 </div>
               </div>
-
-              {!isLoaded && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-indigo-500 mx-auto mb-4"></div>
-                    <p className="text-white text-lg">Loading camera...</p>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Instructions */}
