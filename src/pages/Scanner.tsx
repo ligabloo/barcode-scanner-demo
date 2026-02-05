@@ -1,5 +1,10 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { BrowserPDF417Reader } from "@zxing/browser";
+import {
+  convert_imagedata_to_luma,
+  decode_barcode_with_hints,
+  DecodeHintDictionary,
+  DecodeHintTypes,
+} from "rxing-wasm";
 import { useLocation, Link } from "wouter";
 import { useMediaManager } from "@classytic/react-stream";
 
@@ -26,22 +31,35 @@ function Scanner() {
 
     const video = videoRef.current!;
 
-    const reader = new BrowserPDF417Reader();
-
     const startScan = async () => {
+      const width = video.videoWidth;
+      const height = video.videoHeight;
+      const canvas = new OffscreenCanvas(width, height);
+      const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+
       const interval = setInterval(() => {
         try {
-          const result = reader.decode(video);
+          ctx.drawImage(video, 0, 0);
+
+          const image = ctx.getImageData(0, 0, width, height);
+          const luma = convert_imagedata_to_luma(image);
+
+          const hints = new DecodeHintDictionary();
+          hints.set_hint(DecodeHintTypes.TryHarder, "true");
+          hints.set_hint(DecodeHintTypes.PossibleFormats, "pdf417");
+
+          const result = decode_barcode_with_hints(luma, width, height, hints);
 
           if (result) {
+            console.log(result);
             clearInterval(interval);
-            const barcode = encodeURIComponent(result.getText());
+            const barcode = encodeURIComponent(result.text());
             goToDetailsPage(barcode);
           }
-        } catch (error: unknown) {
+        } catch (error) {
           setError((error as Error).message);
         }
-      }, 30);
+      }, 50);
     };
 
     video.srcObject = cameraStream;
@@ -50,7 +68,7 @@ function Scanner() {
 
     return () => {
       video.removeEventListener("playing", startScan);
-      video.pause();
+
       video.srcObject = null;
       cameraStream.getTracks().forEach((track) => track.stop());
     };
@@ -146,7 +164,7 @@ function Scanner() {
               <ul className="space-y-2 text-gray-700">
                 <li className="flex items-start">
                   <svg
-                    className="h-6 w-6 text-green-500 mr-2 flex-shrink-0"
+                    className="h-6 w-6 text-green-500 mr-2 shrink-0"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -164,7 +182,7 @@ function Scanner() {
                 </li>
                 <li className="flex items-start">
                   <svg
-                    className="h-6 w-6 text-green-500 mr-2 flex-shrink-0"
+                    className="h-6 w-6 text-green-500 mr-2 shrink-0"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -180,7 +198,7 @@ function Scanner() {
                 </li>
                 <li className="flex items-start">
                   <svg
-                    className="h-6 w-6 text-green-500 mr-2 flex-shrink-0"
+                    className="h-6 w-6 text-green-500 mr-2 shrink-0"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
