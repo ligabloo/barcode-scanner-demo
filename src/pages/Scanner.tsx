@@ -1,50 +1,19 @@
-import { useEffect, useEffectEvent, useRef } from "react";
+import { useCallback, useRef } from "react";
 import { useLocation, Link } from "wouter";
-import { useMediaManager } from "@classytic/react-stream";
+import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 
 function Scanner() {
-  const { cameraStream, setCameraEnabled } = useMediaManager({
-    autoInitialize: true,
-    videoConstraints: {
-      width: 1280,
-      height: 720,
-      facingMode: "environment",
-    },
-    audioConstraints: false,
-  });
   const videoRef = useRef<HTMLVideoElement>(null);
   const [, navigate] = useLocation();
 
-  const goToDetailsPage = useEffectEvent((barcode: string) => {
-    navigate(`/license-details/${barcode}`);
-  });
+  const barcodeScannerCallback = useCallback(
+    (barcode: string) => {
+      navigate(`/license-details/${barcode}`);
+    },
+    [navigate],
+  );
 
-  useEffect(() => {
-    if (!cameraStream) return;
-
-    const video = videoRef.current!;
-
-    const startScan = async () => {
-      const { BrowserPDF417Reader } = await import("@zxing/browser");
-
-      const reader = new BrowserPDF417Reader();
-
-      const result = await reader.decodeOnceFromVideoElement(video);
-      const barcode = encodeURIComponent(result.getText());
-      goToDetailsPage(barcode);
-    };
-
-    video.srcObject = cameraStream;
-    video.play();
-    video.addEventListener("playing", startScan);
-
-    return () => {
-      video.removeEventListener("playing", startScan);
-
-      video.srcObject = null;
-      cameraStream.getTracks().forEach((track) => track.stop());
-    };
-  }, [cameraStream, setCameraEnabled]);
+  useBarcodeScanner(videoRef, barcodeScannerCallback);
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
