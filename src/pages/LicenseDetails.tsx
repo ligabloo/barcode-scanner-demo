@@ -1,6 +1,7 @@
 import { useLocation, Link, useParams } from "wouter";
-import { Parse, type ParsedLicense } from "aamva-parser";
+import { isParsedBarCodeValid, parseBarcode } from "../utils/barcode";
 import { useMemo } from "react";
+import type { ParsedBarcodeType } from "../types/driversLicenseScanner";
 
 const Field = ({
   label,
@@ -13,7 +14,7 @@ const Field = ({
     <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
       {label}
     </div>
-    <div className="text-base text-gray-900 break-words">
+    <div className="text-base text-gray-900 wrap-break-word">
       {value?.toString() || "N/A"}
     </div>
   </div>
@@ -23,15 +24,16 @@ function LicenseDetails() {
   const [, navigate] = useLocation();
   const { barcode } = useParams<{ barcode: string }>();
 
-  const license = useMemo<ParsedLicense | null>(() => {
-    try {
-      const license = Parse(barcode);
-      return license;
-    } catch (err) {
-      console.error("Failed to parse license data:", err);
+  const license = useMemo<ParsedBarcodeType | null>(() => {
+    const license = parseBarcode(barcode);
+
+    if (!license || !isParsedBarCodeValid(license)) {
+      console.error("Failed to parse license data");
       setTimeout(() => navigate("/"), 0);
       return null;
     }
+
+    return license;
   }, [barcode, navigate]);
 
   if (!license) {
@@ -46,7 +48,7 @@ function LicenseDetails() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50 py-8 px-4">
+    <div className="min-h-screen bg-linear-to-br from-indigo-50 to-blue-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -57,12 +59,8 @@ function LicenseDetails() {
         </div>
 
         <div className="bg-white rounded-xl shadow-md overflow-hidden mb-4 px-6">
-          {Object.keys(license).map((key) => (
-            <Field
-              key={key}
-              label={key}
-              value={license[key as keyof ParsedLicense]?.toString()}
-            />
+          {Object.entries(license).map(([key, value]) => (
+            <Field key={key} label={key} value={value} />
           ))}
         </div>
 

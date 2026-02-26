@@ -102,8 +102,8 @@ barcode-scanner-demo/
 - **PostCSS & Autoprefixer** - CSS processing
 
 ### Barcode Processing
-- **barcode-detector 3.0.8** - Web API for barcode detection
-- **aamva-parser 1.4.1** - Parser for AAMVA-compliant driver's license data
+- **@zxing/browser 0.1.5** - Web library for barcode detection
+
 
 ### Routing & Navigation
 - **Wouter 3.9.0** - Lightweight routing library

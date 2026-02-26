@@ -13,12 +13,9 @@
     "@classytic/react-stream": "^1.0.0",
     "@tailwindcss/vite": "^4.1.18",
     "@zxing/browser": "^0.1.5",
-    "aamva-parser": "^1.4.1",
+    "dayjs": "^1.11.19",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "rxing-wasm": "^0.5.4",
-    "vite-plugin-top-level-await": "^1.6.0",
-    "vite-plugin-wasm": "^3.5.0",
     "wouter": "^3.9.0"
   },
   "devDependencies": {
@@ -36,6 +33,6 @@
     "rollup": "^4.57.1",
     "tailwindcss": "^4.1.18",
     "typescript": "~5.9.3",
-    "typescript-eslint": "^8.46.4",
+    "typescript-eslint": "^8.46.4"
   }
 }
